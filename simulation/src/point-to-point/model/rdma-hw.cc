@@ -1514,9 +1514,9 @@ namespace ns3
 	{
 		// printf("HandleACKBolt\n");
 		uint64_t rtt_now = Simulator::Now().GetTimeStep() - ch.bolt.tx;
-		uint64_t r = qp->m_rate.GetBitRate() / ((ch.bolt.q_size_and_rate & (0xff)) * 5000000000);
-		uint64_t q = (ch.bolt.q_size_and_rate >> 8) * r;
-		// printf("%ld %ld %ld %d %d\n", q, r, rtt_now, ch.bolt.q_size_and_rate & 0xff, ch.bolt.q_size_and_rate >> 8);
+		double r = qp->m_rate.GetBitRate() / ((ch.bolt.q_size_and_rate & (0xff)) * 5000000000);
+		double q = (ch.bolt.q_size_and_rate >> 8) * r;
+		printf("%ld %ld %ld %d %d\n", q, r, rtt_now, ch.bolt.q_size_and_rate & 0xff, ch.bolt.q_size_and_rate >> 8);
 		if ((rtt_now / q) < (Simulator::Now().GetTimeStep() - qp->last_dec_time))
 		{
 			// printf("%ld %ld %d %d\n", Simulator::Now().GetTimeStep(), rtt_now, qp->m_win, ch.bolt.tx);
