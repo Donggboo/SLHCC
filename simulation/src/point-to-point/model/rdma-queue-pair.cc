@@ -74,6 +74,9 @@ namespace ns3
 		snd_cnt = 0;
 		nt_cnt = 0;
 		q_t = 0;
+
+		last_ai = 0;
+		last_dec_time=0;
 	}
 
 	void RdmaQueuePair::SetSize(uint64_t size)

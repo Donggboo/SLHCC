@@ -98,6 +98,11 @@ namespace ns3
 		uint64_t nt_cnt;
 		u_int64_t q_t;
 
+		// bolt
+		uint64_t last_ai;
+		uint64_t mtu;
+		uint64_t max_win;
+		uint64_t last_dec_time;
 		/***********
 		 * methods
 		 **********/

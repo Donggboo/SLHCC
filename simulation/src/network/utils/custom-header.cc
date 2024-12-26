@@ -105,6 +105,8 @@ namespace ns3
 				len += 9;
 			else if (l3Prot == 0xFB)
 				len += 12;
+			else if (l3Prot == 0xFA)
+				len += 11;
 		}
 		return len;
 	}
@@ -199,11 +201,20 @@ namespace ns3
 				i.WriteU8(pfc.qIndex);
 			}
 			else if (l3Prot == 0xFB)
-			{
+			{ // NT
 				i.WriteU16(nt.dport);
 				i.WriteU16(nt.rate);
 				i.WriteU32(nt.ih.buf[0]);
 				i.WriteU32(nt.ih.buf[1]);
+			}
+			else if (l3Prot == 0xFA)
+			{ // bolt
+				i.WriteU16(bolt.dport);
+				i.WriteU32(bolt.q_size_and_rate);
+				i.WriteU8(bolt.flags);
+				i.WriteU32(bolt.tx);
+				// printf("CustomHeader:deserialize: \n");
+				// printf("%d %d %d %d\n", bolt.q_size_and_rate >> 8, bolt.q_size_and_rate & 0xff, (int)bolt.flags, bolt.tx);
 			}
 		}
 	}
@@ -373,6 +384,15 @@ namespace ns3
 				nt.ih.buf[0] = i.ReadU32();
 				nt.ih.buf[1] = i.ReadU32();
 				l4Size = 12;
+			}
+			else if (l3Prot == 0xFA)
+			{
+				bolt.dport = i.ReadU16();
+				bolt.q_size_and_rate = i.ReadU32();
+				bolt.flags = i.ReadU8();
+				bolt.tx = i.ReadU32();
+				// printf("CustomHeader:deserialize: \n");
+				// printf("%d %d %d %d\n", bolt.q_size_and_rate >> 8, bolt.q_size_and_rate & 0xff, (int)bolt.flags, bolt.tx);
 			}
 		}
 

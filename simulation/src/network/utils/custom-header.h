@@ -145,6 +145,13 @@ namespace ns3
         uint16_t dport, rate;
         IntHop ih;
       } nt;
+      struct
+      {
+        uint16_t dport;
+        uint32_t q_size_and_rate;
+        uint8_t flags;
+        uint32_t tx;
+      } bolt;
     };
 
     uint8_t GetIpv4EcnBits(void) const;

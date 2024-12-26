@@ -32,14 +32,7 @@ namespace ns3
 		bool m_ecnEnabled;
 		uint32_t m_ccMode;
 		uint64_t m_maxRtt;
-
 		uint32_t m_ackHighPrio; // set high priority for ACK/NACK
-
-		uint64_t bit;
-		uint32_t qlen;
-		uint64_t rate;
-		std::unordered_map<uint32_t, uint64_t> lastsnd;
-		uint64_t upi;
 
 	private:
 		int GetOutDev(Ptr<const Packet>, CustomHeader &ch);
@@ -54,6 +47,9 @@ namespace ns3
 		std::unordered_map<int, int> fat_tree_route_table;
 		std::unordered_map<int, int> port_table;
 		std::vector<int> port_sw;
+		uint64_t last_sm_time[pCnt];
+		uint64_t sm_token[pCnt];
+		uint64_t pur_token[pCnt];
 		bool use_fat_tree_route_table = false;
 		int sw_t = 0;
 		static TypeId GetTypeId(void);
@@ -68,7 +64,11 @@ namespace ns3
 		int logres_shift(int b, int l);
 		int log2apprx(int x, int b, int m, int l); // given x of at most b bits, use most significant m bits of x, calc the result in l bits
 		// LHCC
-		void sendNT(Ptr<Packet> p, uint32_t ifIndex);
+		void sendNT(Ptr<Packet> p, uint32_t ifIndex); // LHCC
+
+		// bolt
+		void CalculateSupplyToken(Ptr<Packet> p, uint32_t ifIndex);
+		void Bolt(Ptr<Packet> p, uint32_t ifIndex);
 	};
 
 } /* namespace ns3 */

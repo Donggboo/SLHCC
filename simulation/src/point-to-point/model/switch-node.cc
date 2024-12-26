@@ -12,6 +12,8 @@
 #include "ns3/int-header.h"
 #include "qbb-header.h"
 #include "NT-header.h"
+#include "SRC-header.h"
+
 #include <cmath>
 
 namespace ns3
@@ -61,10 +63,12 @@ namespace ns3
 			m_lastPktSize[i] = m_lastPktTs[i] = 0;
 		for (uint32_t i = 0; i < pCnt; i++)
 			m_u[i] = 0;
-		qlen = 0;
-		bit = 0;
-		rate = 0;
-		upi = 0;
+		for (uint32_t i = 0; i < pCnt; i++)
+		{
+			last_sm_time[i] = 0;
+			sm_token[i] = 0;
+			pur_token[i] = 0;
+		}
 		m_ackHighPrio = 1;
 	}
 
@@ -131,26 +135,29 @@ namespace ns3
 
 	void SwitchNode::SendToDev(Ptr<Packet> p, CustomHeader &ch)
 	{
-
+		// printf("SwitchNode::SendToDev\n");
 		int idx = GetOutDev(p, ch);
+		// printf("%d\n", __LINE__);
 		if (idx >= 0)
 		{
+			// printf("%d\n", __LINE__);
 			NS_ASSERT_MSG(m_devices[idx]->IsLinkUp(), "The routing table look up should return link that is up");
 
 			// determine the qIndex
 			uint32_t qIndex;
-			if (ch.l3Prot == 0xFF || ch.l3Prot == 0xFE || (m_ackHighPrio && (ch.l3Prot == 0xFD || ch.l3Prot == 0xFC || ch.l3Prot == 0xFC)))
-			{ // QCN or PFC or NACK, go highest priority
+			if (ch.l3Prot == 0xFF || ch.l3Prot == 0xFE || ch.l3Prot == 0xFD || ch.l3Prot == 0xFB || ch.l3Prot == 0xFA)
+			{ // QCN or PFC or NACK or NT or SRC, go highest priority
 				qIndex = 0;
 			}
 			else
 			{
 				qIndex = (ch.l3Prot == 0x06 ? 1 : ch.udp.pg); // if TCP, put to queue 1
 			}
-
-			// admission control
+			// printf("%d\n", __LINE__);
+			//  admission control
 			FlowIdTag t;
 			p->PeekPacketTag(t);
+			// printf("%d\n", __LINE__);
 			uint32_t inDev = t.GetFlowId();
 			if (qIndex != 0)
 			{ // not highest priority
@@ -169,13 +176,21 @@ namespace ns3
 			{
 				sendNT(p, idx);
 			}
+			if (m_ccMode == 13 && ch.l3Prot == 0x11)
+			{
+				Bolt(p, idx);
+			}
+			// printf("%d %d %d\n", __LINE__, qIndex, ch.udp.pg);
 			m_bytes[inDev][idx][qIndex] += p->GetSize();
 			m_devices[idx]->SwitchSend(qIndex, p, ch);
+			// printf("%d\n", __LINE__);
 		}
 		else
 		{
+			// printf("SwitchNode::SendToDevend1\n");
 			return; // Drop
 		}
+		// printf("SwitchNode::SendToDevend2\n");
 	}
 
 	uint32_t SwitchNode::EcmpHash(const uint8_t *key, size_t len, uint32_t seed)
@@ -280,6 +295,7 @@ namespace ns3
 			{
 				IntHeader *ih = (IntHeader *)&buf[PppHeader::GetStaticSize() + 20 + 8 + 6]; // ppp, ip, udp, SeqTs, INT
 				Ptr<QbbNetDevice> dev = DynamicCast<QbbNetDevice>(m_devices[ifIndex]);
+				printf("%ld %ld %d\n", Simulator::Now().GetTimeStep(), id, dev->GetQueue()->GetNBytesTotal());
 				if (m_ccMode == 3)
 				{ // HPCC
 					// printf("nhop:%d\n",ih->nhop);
@@ -404,7 +420,7 @@ namespace ns3
 		Ptr<Packet> newp = Create<Packet>(0);
 		NTHeader nt;
 		nt.rate = ch.udp.ih.rate;
-		qlen = dev->GetQueue()->GetNBytesTotal();
+		uint64_t qlen = dev->GetQueue()->GetNBytesTotal();
 		uint8_t *buf = p->GetBuffer();
 		IntHeader *ih = (IntHeader *)&buf[PppHeader::GetStaticSize() + 20 + 8 + 6];
 		if (ih->u == 253 && qlen == 0)
@@ -449,6 +465,84 @@ namespace ns3
 		newp->PeekHeader(chh);
 		newp->AddPacketTag(FlowIdTag(ifIndex));
 		SendToDev(newp, chh);
+	}
+	void SwitchNode::CalculateSupplyToken(Ptr<Packet> p, uint32_t ifIndex)
+	{
+		Ptr<QbbNetDevice> dev = DynamicCast<QbbNetDevice>(m_devices[ifIndex]);
+		uint64_t dt = Simulator::Now().GetTimeStep() - last_sm_time[ifIndex];
+		last_sm_time[ifIndex] = Simulator::Now().GetTimeStep();
+		uint64_t supply = ((dev->GetDataRate().GetBitRate() / 8) * dt) / 1000000000;
+		uint64_t d = p->GetSize();
+		sm_token[ifIndex] = sm_token[ifIndex] + supply - d;
+		sm_token[ifIndex] = std::min(sm_token[ifIndex], (uint64_t)(1000));
+	}
+	void SwitchNode::Bolt(Ptr<Packet> p, uint32_t ifIndex)
+	{
+		// printf("bolt\n");
+		CalculateSupplyToken(p, ifIndex);
+		Ptr<QbbNetDevice> dev = DynamicCast<QbbNetDevice>(m_devices[ifIndex]);
+		CustomHeader ch(CustomHeader::L2_Header | CustomHeader::L3_Header | CustomHeader::L4_Header);
+		p->PeekHeader(ch);
+		uint8_t *buf = p->GetBuffer();
+		IntHeader *ih = (IntHeader *)&buf[PppHeader::GetStaticSize() + 20 + 8 + 6];
+		// printf("%d %d %d %d\n", dev->GetQueue()->GetNBytesTotal(), ch.udp.ih.bolt.flags & (1 << 5), ch.udp.ih.bolt.flags & (1 << 6), __LINE__);
+		if (dev->GetQueue()->GetNBytesTotal() >= 1000)
+		{
+			// printf("%d\n", __LINE__);
+			// printf("%d\n", __LINE__);
+			if ((((int)ch.udp.ih.bolt.flags) & (1 << 6)) == 0)
+			{
+				// printf("%d\n", __LINE__);
+				SRCHeader srcheader;
+				srcheader.dport = ch.udp.sport;
+				srcheader.bolt.tx = ch.udp.ih.bolt.tx;
+				srcheader.bolt.q_size_and_rate = dev->GetQueue()->GetNBytesTotal() << 8;
+				srcheader.bolt.q_size_and_rate |= (dev->GetDataRate().GetBitRate() / 5000000000);
+				Ptr<Packet> srcpkt = Create<Packet>(0);
+				srcpkt->AddHeader(srcheader);
+				Ipv4Header ipv4h; // Prepare IPv4 header
+				ipv4h.SetProtocol(0xFA);
+				uint32_t sip = 0x0b000001 + ((m_id / 256) * 0x00010000) + ((m_id % 256) * 0x00000100);
+				ipv4h.SetSource(Ipv4Address(sip));
+				ipv4h.SetDestination(Ipv4Address(ch.sip));
+				ipv4h.SetPayloadSize(0);
+				ipv4h.SetTtl(64);
+				srcpkt->AddHeader(ipv4h);
+				PppHeader ppp;
+				ppp.SetProtocol(0x0021);
+				srcpkt->AddHeader(ppp);
+				CustomHeader chh(CustomHeader::L2_Header | CustomHeader::L3_Header | CustomHeader::L4_Header);
+				srcpkt->PeekHeader(chh);
+				srcpkt->AddPacketTag(FlowIdTag(ifIndex));
+				// printf("%d %d %d %d\n", chh.l3Prot, chh.bolt.tx, chh.bolt.q_size_and_rate >> 8, __LINE__);
+				SendToDev(srcpkt, chh);
+			}
+			ih->bolt.flags &= !(1u << 5);
+			ih->bolt.flags |= (1u << 6);
+		}
+		else if ((ch.udp.ih.bolt.flags & (1u << 3)) != 0)
+		{
+			if ((ch.udp.ih.bolt.flags & (1u << 4)) == 0)
+			{
+				pur_token[ifIndex]++;
+			}
+		}
+		else if ((ch.udp.ih.bolt.flags & (1u << 5)) != 0)
+		{
+			if (pur_token[ifIndex] > 0)
+			{
+				pur_token[ifIndex] = pur_token[ifIndex] - 1;
+			}
+			else if (sm_token[ifIndex] > 1000)
+			{
+				sm_token[ifIndex] -= 1000;
+			}
+			else
+			{
+				ih->bolt.flags &= !(1u << 5);
+			}
+		}
+		// printf("bolt:end\n");
 	}
 
 } /* namespace ns3 */

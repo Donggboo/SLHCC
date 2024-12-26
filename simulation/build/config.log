@@ -1,4 +1,4 @@
-# project ns (3.18) configured on Sun Dec 15 16:31:09 2024 by
+# project ns (3.18) configured on Tue Dec 24 18:00:48 2024 by
 # waf 1.7.11 (abi 98, python 20712f0 on linux2)
 # using ./waf configure
 #
@@ -11,7 +11,7 @@ Setting out to
 ----------------------------------------
 Checking for 'gcc' (c compiler)
 find program=['gcc', 'cc'] paths='' var='CC' -> 'gcc-5'
-find program=['ar'] paths=['/home/sdn/.vscode-server/cli/servers/Stable-138f619c86f1199955d53b4166bef66ef252935c/server/bin/remote-cli', '/home/sdn/anaconda3/envs/SLHCC/bin', '/home/sdn/anaconda3/condabin', '/usr/local/sbin', '/usr/local/bin', '/usr/sbin', '/usr/bin', '/sbin', '/bin', '/usr/games', '/usr/local/games', '/snap/bin'] var='AR' -> '/usr/bin/ar'
+find program=['ar'] paths=['/home/sdn/.vscode-server/cli/servers/Stable-fabdb6a30b49f79a7aba0f2ad9df9b399473380f/server/bin/remote-cli', '/home/sdn/anaconda3/envs/SLHCC/bin', '/home/sdn/anaconda3/condabin', '/usr/local/sbin', '/usr/local/bin', '/usr/sbin', '/usr/bin', '/sbin', '/bin', '/usr/games', '/usr/local/games', '/snap/bin'] var='AR' -> '/usr/bin/ar'
 gcc-5
 ----------------------------------------
 Checking for 'g++' (c++ compiler)
@@ -35,7 +35,7 @@ ok
 ---------------------------------------------------------
 Checking for program python
 /home/sdn/anaconda3/envs/SLHCC/bin/python
-find program=['python'] paths=['/home/sdn/.vscode-server/cli/servers/Stable-138f619c86f1199955d53b4166bef66ef252935c/server/bin/remote-cli', '/home/sdn/anaconda3/envs/SLHCC/bin', '/home/sdn/anaconda3/condabin', '/usr/local/sbin', '/usr/local/bin', '/usr/sbin', '/usr/bin', '/sbin', '/bin', '/usr/games', '/usr/local/games', '/snap/bin'] var='PYTHON' -> '/home/sdn/anaconda3/envs/SLHCC/bin/python'
+find program=['python'] paths=['/home/sdn/.vscode-server/cli/servers/Stable-fabdb6a30b49f79a7aba0f2ad9df9b399473380f/server/bin/remote-cli', '/home/sdn/anaconda3/envs/SLHCC/bin', '/home/sdn/anaconda3/condabin', '/usr/local/sbin', '/usr/local/bin', '/usr/sbin', '/usr/bin', '/sbin', '/bin', '/usr/games', '/usr/local/games', '/snap/bin'] var='PYTHON' -> '/home/sdn/anaconda3/envs/SLHCC/bin/python'
 ['/home/sdn/anaconda3/envs/SLHCC/bin/python', '-c', 'import sys\nfor x in sys.version_info: print(str(x))']
 out: 2
 7
@@ -106,7 +106,7 @@ yes
 --------------------------------------------------------------------------------------------------------------------------
 Checking for program /home/sdn/anaconda3/envs/SLHCC/bin/python-config,python2.7-config,python-config-2.7,python2.7m-config
 /home/sdn/anaconda3/envs/SLHCC/bin/python-config
-find program=['/home/sdn/anaconda3/envs/SLHCC/bin/python-config', 'python2.7-config', 'python-config-2.7', 'python2.7m-config'] paths=['/home/sdn/.vscode-server/cli/servers/Stable-138f619c86f1199955d53b4166bef66ef252935c/server/bin/remote-cli', '/home/sdn/anaconda3/envs/SLHCC/bin', '/home/sdn/anaconda3/condabin', '/usr/local/sbin', '/usr/local/bin', '/usr/sbin', '/usr/bin', '/sbin', '/bin', '/usr/games', '/usr/local/games', '/snap/bin'] var='PYTHON_CONFIG' -> '/home/sdn/anaconda3/envs/SLHCC/bin/python-config'
+find program=['/home/sdn/anaconda3/envs/SLHCC/bin/python-config', 'python2.7-config', 'python-config-2.7', 'python2.7m-config'] paths=['/home/sdn/.vscode-server/cli/servers/Stable-fabdb6a30b49f79a7aba0f2ad9df9b399473380f/server/bin/remote-cli', '/home/sdn/anaconda3/envs/SLHCC/bin', '/home/sdn/anaconda3/condabin', '/usr/local/sbin', '/usr/local/bin', '/usr/sbin', '/usr/bin', '/sbin', '/bin', '/usr/games', '/usr/local/games', '/snap/bin'] var='PYTHON_CONFIG' -> '/home/sdn/anaconda3/envs/SLHCC/bin/python-config'
 ['/home/sdn/anaconda3/envs/SLHCC/bin/python-config', '--includes']
 out: -I/home/sdn/anaconda3/envs/SLHCC/include/python2.7 -I/home/sdn/anaconda3/envs/SLHCC/include/python2.7
 
@@ -195,7 +195,7 @@ not found
 --------------------------------------------------------------------------------------------------------------------------
 Checking for program pkg-config
 /usr/bin/pkg-config
-find program=['pkg-config'] paths=['/home/sdn/.vscode-server/cli/servers/Stable-138f619c86f1199955d53b4166bef66ef252935c/server/bin/remote-cli', '/home/sdn/anaconda3/envs/SLHCC/bin', '/home/sdn/anaconda3/condabin', '/usr/local/sbin', '/usr/local/bin', '/usr/sbin', '/usr/bin', '/sbin', '/bin', '/usr/games', '/usr/local/games', '/snap/bin'] var='PKGCONFIG' -> '/usr/bin/pkg-config'
+find program=['pkg-config'] paths=['/home/sdn/.vscode-server/cli/servers/Stable-fabdb6a30b49f79a7aba0f2ad9df9b399473380f/server/bin/remote-cli', '/home/sdn/anaconda3/envs/SLHCC/bin', '/home/sdn/anaconda3/condabin', '/usr/local/sbin', '/usr/local/bin', '/usr/sbin', '/usr/bin', '/sbin', '/bin', '/usr/games', '/usr/local/games', '/snap/bin'] var='PKGCONFIG' -> '/usr/bin/pkg-config'
 --------------------------------------------------------------------------------------------------------------------------
 Checking for 'gtk+-2.0' >= 2.12
 ['/usr/bin/pkg-config', '--atleast-version=2.12', 'gtk+-2.0']
@@ -243,7 +243,7 @@ from /home/sdn/ybd/SLHCC/simulation/src/core: Test does not build: Traceback (mo
     raise Errors.BuildError(self.producer.error)
 BuildError: Build failed
  -> task in 'testprog' failed (exit status 1): 
-	{task 140305578200016: cxx test.cpp -> test.cpp.1.o}
+	{task 140431244057680: cxx test.cpp -> test.cpp.1.o}
 ['g++-5', '-O0', '-ggdb', '-g3', '-std=gnu++11', '-DNS3_ASSERT_ENABLE', '-DNS3_LOG_ENABLE', '../test.cpp', '-c', '-o', 'test.cpp.1.o']
 
 not found
@@ -331,7 +331,7 @@ from /home/sdn/ybd/SLHCC/simulation/src/core: Test does not build: Traceback (mo
     raise Errors.BuildError(self.producer.error)
 BuildError: Build failed
  -> task in 'testprog' failed (exit status 1): 
-	{task 140305578304464: cxx test.cpp -> test.cpp.1.o}
+	{task 140431244153936: cxx test.cpp -> test.cpp.1.o}
 ['g++-5', '-O0', '-ggdb', '-g3', '-std=gnu++11', '-DNS3_ASSERT_ENABLE', '-DNS3_LOG_ENABLE', '-DHAVE___UINT128_T=1', '-DINT64X64_USE_128=1', '-DHAVE_STDINT_H=1', '-DHAVE_INTTYPES_H=1', '../test.cpp', '-c', '-o', 'test.cpp.1.o']
 
 not found
@@ -506,7 +506,7 @@ from /home/sdn/ybd/SLHCC/simulation/src/core: Test does not build: Traceback (mo
     raise Errors.BuildError(self.producer.error)
 BuildError: Build failed
  -> task in 'testprog' failed (exit status 1): 
-	{task 140305588482768: cxx test.cpp -> test.cpp.1.o}
+	{task 140431209437968: cxx test.cpp -> test.cpp.1.o}
 ['g++-5', '-O0', '-ggdb', '-g3', '-std=gnu++11', '-DNS3_ASSERT_ENABLE', '-DNS3_LOG_ENABLE', '-DHAVE___UINT128_T=1', '-DINT64X64_USE_128=1', '-DHAVE_SYS_TYPES_H=1', '-DHAVE_SYS_STAT_H=1', '-DHAVE_DIRENT_H=1', '-DHAVE_STDLIB_H=1', '-DHAVE_GETENV=1', '-DHAVE_SIGNAL_H=1', '-DHAVE_PTHREAD_H=1', '-DHAVE_STDINT_H=1', '-DHAVE_INTTYPES_H=1', '../test.cpp', '-c', '-o', 'test.cpp.1.o']
 
 not found
@@ -580,11 +580,11 @@ yes
 --------------------------------------------------------------------------------------------------------------------------
 Checking for program sudo
 /usr/bin/sudo
-find program=['sudo'] paths=['/home/sdn/.vscode-server/cli/servers/Stable-138f619c86f1199955d53b4166bef66ef252935c/server/bin/remote-cli', '/home/sdn/anaconda3/envs/SLHCC/bin', '/home/sdn/anaconda3/condabin', '/usr/local/sbin', '/usr/local/bin', '/usr/sbin', '/usr/bin', '/sbin', '/bin', '/usr/games', '/usr/local/games', '/snap/bin'] var='SUDO' -> '/usr/bin/sudo'
+find program=['sudo'] paths=['/home/sdn/.vscode-server/cli/servers/Stable-fabdb6a30b49f79a7aba0f2ad9df9b399473380f/server/bin/remote-cli', '/home/sdn/anaconda3/envs/SLHCC/bin', '/home/sdn/anaconda3/condabin', '/usr/local/sbin', '/usr/local/bin', '/usr/sbin', '/usr/bin', '/sbin', '/bin', '/usr/games', '/usr/local/games', '/snap/bin'] var='SUDO' -> '/usr/bin/sudo'
 --------------------------------------------------------------------------------------------------------------------------
 Checking for program valgrind
 not found
-find program=['valgrind'] paths=['/home/sdn/.vscode-server/cli/servers/Stable-138f619c86f1199955d53b4166bef66ef252935c/server/bin/remote-cli', '/home/sdn/anaconda3/envs/SLHCC/bin', '/home/sdn/anaconda3/condabin', '/usr/local/sbin', '/usr/local/bin', '/usr/sbin', '/usr/bin', '/sbin', '/bin', '/usr/games', '/usr/local/games', '/snap/bin'] var='VALGRIND' -> ''
+find program=['valgrind'] paths=['/home/sdn/.vscode-server/cli/servers/Stable-fabdb6a30b49f79a7aba0f2ad9df9b399473380f/server/bin/remote-cli', '/home/sdn/anaconda3/envs/SLHCC/bin', '/home/sdn/anaconda3/condabin', '/usr/local/sbin', '/usr/local/bin', '/usr/sbin', '/usr/bin', '/sbin', '/bin', '/usr/games', '/usr/local/games', '/snap/bin'] var='VALGRIND' -> ''
 from /home/sdn/ybd/SLHCC/simulation: Could not find the program valgrind
 --------------------------------------------------------------------------------------------------------------------------
 Checking for 'gsl'
@@ -683,5 +683,5 @@ ok
 --------------------------------------------------------------------------------------------------------------------------
 Checking for program doxygen
 not found
-find program=['doxygen'] paths=['/home/sdn/.vscode-server/cli/servers/Stable-138f619c86f1199955d53b4166bef66ef252935c/server/bin/remote-cli', '/home/sdn/anaconda3/envs/SLHCC/bin', '/home/sdn/anaconda3/condabin', '/usr/local/sbin', '/usr/local/bin', '/usr/sbin', '/usr/bin', '/sbin', '/bin', '/usr/games', '/usr/local/games', '/snap/bin'] var='DOXYGEN' -> ''
+find program=['doxygen'] paths=['/home/sdn/.vscode-server/cli/servers/Stable-fabdb6a30b49f79a7aba0f2ad9df9b399473380f/server/bin/remote-cli', '/home/sdn/anaconda3/envs/SLHCC/bin', '/home/sdn/anaconda3/condabin', '/usr/local/sbin', '/usr/local/bin', '/usr/sbin', '/usr/bin', '/sbin', '/bin', '/usr/games', '/usr/local/games', '/snap/bin'] var='DOXYGEN' -> ''
 from /home/sdn/ybd/SLHCC/simulation: Could not find the program doxygen

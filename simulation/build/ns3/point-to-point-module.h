@@ -8,6 +8,7 @@
 
 // Module headers:
 #include "NT-header.h"
+#include "SRC-header.h"
 #include "cn-header.h"
 #include "pause-header.h"
 #include "pint.h"

@@ -33,6 +33,10 @@ namespace ns3
 		{
 			return sizeof(rate) + sizeof(u);
 		}
+		else if (mode == BOLT)
+		{
+			return sizeof(bolt);
+		}
 		else
 		{
 			return 0;
@@ -78,6 +82,12 @@ namespace ns3
 			i.WriteU16(rate);
 			i.WriteU8(u);
 		}
+		else if (mode == BOLT)
+		{
+			i.WriteU32(bolt.q_size_and_rate);
+			i.WriteU8(bolt.flags);
+			i.WriteU32(bolt.tx);
+		}
 	}
 
 	uint32_t IntHeader::Deserialize(Buffer::Iterator start)
@@ -108,6 +118,12 @@ namespace ns3
 		{
 			rate = i.ReadU16();
 			u = i.ReadU8();
+		}
+		else if (mode == BOLT)
+		{
+			bolt.q_size_and_rate = i.ReadU32();
+			bolt.flags = i.ReadU8();
+			bolt.tx = i.ReadU32();
 		}
 		return GetStaticSize();
 	}

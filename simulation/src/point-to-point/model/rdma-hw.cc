@@ -288,6 +288,11 @@ namespace ns3
 		{
 			qp->hpccPint.m_curRate = m_bps;
 		}
+		else if (m_cc_mode == 13)
+		{
+			qp->mtu = m_mtu;
+			qp->max_win = win;
+		}
 
 		// Notify Nic
 		m_nic[nic_idx].dev->NewQp(qp);
@@ -356,7 +361,6 @@ namespace ns3
 		}
 		rxQp->m_ecn_source.total++;
 		rxQp->m_milestone_rx = m_ack_interval;
-		NTHeader rh;
 		int x = ReceiverCheckSeq(ch.udp.seq, rxQp, payload_size);
 		if (x == 1 || x == 2)
 		{ // generate ACK or NACK
@@ -462,9 +466,23 @@ namespace ns3
 			HandleLHCC(qp, p, ch);
 		return 0;
 	}
+	int RdmaHw::ReceiveSRC(Ptr<Packet> p, CustomHeader &ch)
+	{
+		uint16_t port = ch.bolt.dport;
+		Ptr<RdmaQueuePair> qp = GetQp(ch.dip, port, 3);
+		if (qp == NULL)
+		{
+			printf("qp==null\n");
+			return -1;
+		}
+		if (m_cc_mode == 13)
+			HandleSRCBolt(qp, p, ch);
+		return 0;
+	}
 
 	int RdmaHw::ReceiveAck(Ptr<Packet> p, CustomHeader &ch)
 	{
+		// printf("receive ack %d \n", __LINE__);
 		uint16_t qIndex = ch.ack.pg;
 		uint16_t port = ch.ack.dport;
 		uint32_t seq = ch.ack.seq;
@@ -528,7 +546,10 @@ namespace ns3
 		{
 			HandleAckHpPint(qp, p, ch);
 		}
-
+		else if (m_cc_mode == 13)
+		{
+			HandleACKBolt(qp, p, ch);
+		}
 		// ACK may advance the on-the-fly window, allowing more packets to send
 		dev->TriggerTransmit();
 		return 0;
@@ -536,6 +557,7 @@ namespace ns3
 
 	int RdmaHw::Receive(Ptr<Packet> p, CustomHeader &ch)
 	{
+		// printf("receive %d %d %d\n", __LINE__, ch.l3Prot, 0xFA);
 		if (ch.l3Prot == 0x11)
 		{ // UDP
 
@@ -557,6 +579,10 @@ namespace ns3
 		else if (ch.l3Prot == 0xFB)
 		{
 			ReceiveNT(p, ch);
+		}
+		else if (ch.l3Prot == 0xFA)
+		{
+			ReceiveSRC(p, ch);
 		}
 		return 0;
 	}
@@ -718,6 +744,14 @@ namespace ns3
 			qp->snd_cnt += 1;
 			qp->snd_cnt %= qp->snd_interval;
 		}
+		if (m_cc_mode == 13)
+		{
+			ih.bolt.flags |= (qp->snd_nxt <= qp->m_win ? 1u : 0u) << 4;
+			ih.bolt.flags |= (qp->snd_nxt + qp->m_win >= qp->m_size ? 1u : 0u) << 3;
+			ih.bolt.flags |= 1u << 5;
+			ih.bolt.flags &= (~(1u << 6)) % 256;
+			ih.bolt.tx = Simulator::Now().GetTimeStep();
+		}
 		seqTs.ih = ih;
 		p->AddHeader(seqTs);
 		// add udp header
@@ -744,6 +778,14 @@ namespace ns3
 		// update state
 		qp->snd_nxt += payload_size;
 		qp->m_ipid++;
+		CustomHeader ch(CustomHeader::L2_Header | CustomHeader::L3_Header | CustomHeader::L4_Header);
+		p->PeekHeader(ch);
+		// std::cout << ((int)ih.bolt.flags & (1u << 3)) << " " << ((int)ih.bolt.flags & (1u << 4)) << " " << ((int)ih.bolt.flags & (1u << 5)) << " " << ((int)ih.bolt.flags & (1u << 6)) << " " << (int)ih.bolt.tx << std::endl;
+		// std::cout << ((int)ch.udp.ih.bolt.flags & (1u << 3)) << " " << ((int)ch.udp.ih.bolt.flags & (1u << 4)) << " " << ((int)ch.udp.ih.bolt.flags & (1u << 5)) << " " << ((int)ch.udp.ih.bolt.flags & (1u << 6)) << " " << (int)ch.udp.ih.bolt.tx << std::endl;
+		if (m_cc_mode == 13)
+		{
+			printf("%ld %d %d\n", Simulator::Now().GetTimeStep(), qp->m_win, qp->max_win);
+		}
 		return p;
 	}
 
@@ -1389,6 +1431,9 @@ namespace ns3
 			double duration = tau * 1e-9;
 			double txRate = (ch.nt.ih.GetBytesDelta(qp->ip_hop[ch.sip])) * 8 / duration;
 			double now = Simulator::Now().GetTimeStep() % 16777216;
+			double dq = qlen - qp->ip_hop[ch.sip].GetQlen();
+			double dq_dt = dq / duration;
+			// printf("%f %f %f\n",dq_dt,dq,duration);
 			if (now < ch.nt.ih.GetTime())
 				now += 16777216;
 			double T = now - ch.nt.ih.GetTime();
@@ -1401,8 +1446,6 @@ namespace ns3
 				}
 			}
 			double rtt_q = 0;
-			double u1 = txRate / ch.nt.ih.GetLineRate();
-			double u2 = (double)std::min(ch.nt.ih.GetQlen(), qp->ip_hop[ch.sip].GetQlen()) * qp->m_max_rate.GetBitRate() / ch.ack.ih.hop[0].GetLineRate() / qp->m_win;
 			qp->ip_hop[ch.sip] = ch.nt.ih;
 			for (auto it : qp->ip_hop)
 			{
@@ -1410,6 +1453,7 @@ namespace ns3
 			}
 			DataRate m_sp = DataRate(50000000) * ch.nt.rate;
 			double u = txRate * (qp->m_baseRtt + rtt_q) / (qp->ip_hop[ch.sip].GetLineRate() * (qp->m_baseRtt));
+			u *= (qp->ip_hop[ch.sip].GetLineRate() / (qp->ip_hop[ch.sip].GetLineRate() - dq_dt));
 			if (tau > T)
 			{
 				tau = T;
@@ -1433,5 +1477,52 @@ namespace ns3
 			}
 			ChangeRate(qp, new_rate);
 		}
+	}
+	void RdmaHw::HandleACKBolt(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader &ch)
+	{
+		// printf("HandleACKBolt\n");
+		if ((int)ch.ack.ih.bolt.flags & (1u << 5))
+		{
+			qp->m_win += m_mtu;
+		}
+		if (ch.ack.seq > qp->last_ai)
+		{
+			qp->m_win += m_mtu;
+			qp->last_ai = qp->snd_nxt;
+		}
+		if (qp->m_win > qp->max_win)
+		{
+			qp->m_win = qp->max_win;
+		}
+		if (qp->m_win <= m_mtu)
+		{
+			qp->m_win = m_mtu;
+		}
+		DataRate new_rate = qp->m_max_rate * (qp->m_win / qp->max_win);
+		new_rate += m_rai;
+		if (new_rate > qp->m_max_rate)
+		{
+			new_rate = qp->m_max_rate;
+		}
+		if (new_rate < m_minRate)
+		{
+			new_rate = m_minRate;
+		}
+		ChangeRate(qp, new_rate);
+	}
+	void RdmaHw::HandleSRCBolt(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader &ch)
+	{
+		// printf("HandleACKBolt\n");
+		uint64_t rtt_now = Simulator::Now().GetTimeStep() - ch.bolt.tx;
+		uint64_t r = qp->m_rate.GetBitRate() / ((ch.bolt.q_size_and_rate & (0xff)) * 5000000000);
+		uint64_t q = (ch.bolt.q_size_and_rate >> 8) * r;
+		// printf("%ld %ld %ld %d %d\n", q, r, rtt_now, ch.bolt.q_size_and_rate & 0xff, ch.bolt.q_size_and_rate >> 8);
+		if ((rtt_now / q) < (Simulator::Now().GetTimeStep() - qp->last_dec_time))
+		{
+			// printf("%ld %ld %d %d\n", Simulator::Now().GetTimeStep(), rtt_now, qp->m_win, ch.bolt.tx);
+			qp->m_win -= qp->mtu;
+			qp->last_dec_time = Simulator::Now().GetTimeStep();
+		}
+		// printf("HandleACKBolt:end\n");
 	}
 }

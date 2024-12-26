@@ -60,6 +60,7 @@ namespace ns3
 		Ptr<RdmaRxQueuePair> GetRxQp(uint32_t sip, uint32_t dip, uint16_t sport, uint16_t dport, uint16_t pg, bool create); // get a rxQp
 		uint32_t GetNicIdxOfRxQp(Ptr<RdmaRxQueuePair> q);																	// get the NIC index of the rxQp
 		void DeleteRxQp(uint32_t dip, uint16_t pg, uint16_t dport);
+		int ReceiveSRC(Ptr<Packet> p, CustomHeader &ch);
 		int ReceiveNT(Ptr<Packet> p, CustomHeader &ch);
 		int ReceiveUdp(Ptr<Packet> p, CustomHeader &ch);
 		int ReceiveCnp(Ptr<Packet> p, CustomHeader &ch);
@@ -159,6 +160,12 @@ namespace ns3
 		 * LHCC
 		 ********************/
 		void HandleLHCC(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader &ch);
+
+		/*********************
+		 * LHCC
+		 ********************/
+		void HandleACKBolt(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader &ch);
+		void HandleSRCBolt(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader &ch);
 	};
 
 } /* namespace ns3 */

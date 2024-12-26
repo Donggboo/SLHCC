@@ -25,7 +25,7 @@
 #include "ns3/log.h"
 #include "NT-header.h"
 
-NS_LOG_COMPONENT_DEFINE ("RttHeader");
+NS_LOG_COMPONENT_DEFINE ("NTHeader");
 
 namespace ns3 {
 
@@ -45,7 +45,7 @@ NTHeader::~NTHeader ()
 TypeId
 NTHeader::GetTypeId (void)
 {
-  static TypeId tid = TypeId ("ns3::RttHeader")
+  static TypeId tid = TypeId ("ns3::NTHeader")
     .SetParent<Header> ()
     .AddConstructor<NTHeader> ()
     ;

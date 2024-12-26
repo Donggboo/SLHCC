@@ -100,6 +100,7 @@ namespace ns3
 			TS = 1,
 			PINT = 2,
 			LHCC = 3,
+			BOLT = 4,
 			NONE
 		};
 		static Mode mode;
@@ -127,6 +128,12 @@ namespace ns3
 				u_int16_t rate;
 				u_int8_t u;
 			};
+			struct
+			{
+				uint32_t q_size_and_rate;
+				uint8_t flags;
+				uint32_t tx;
+			} bolt;
 		};
 
 		IntHeader();

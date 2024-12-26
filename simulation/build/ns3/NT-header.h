@@ -18,8 +18,8 @@
  * Author: Adrian S.-W. Tam <adrian.sw.tam@gmail.com>
  */
 
-#ifndef RTT_HEADER_H
-#define RTT_HEADER_H
+#ifndef NT_HEADER_H
+#define NT_HEADER_H
 
 #include <stdint.h>
 #include "ns3/header.h"

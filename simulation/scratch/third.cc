@@ -832,14 +832,24 @@ int main(int argc, char *argv[])
 	IntHop::multi = int_multi;
 	// IntHeader::mode
 	if (cc_mode == 7) // timely, use ts
+	{
 		IntHeader::mode = IntHeader::TS;
+	}
 	else if (cc_mode == 3) // hpcc, use int
+	{
 		IntHeader::mode = IntHeader::NORMAL;
+	}
 	else if (cc_mode == 10) // hpcc-pint
+	{
 		IntHeader::mode = IntHeader::PINT;
-	else if (cc_mode == 11)
+	}
+	else if (cc_mode == 11) // LHCC
 	{
 		IntHeader::mode = IntHeader::LHCC;
+	}
+	else if (cc_mode == 13) // BOLT
+	{
+		IntHeader::mode = IntHeader::BOLT;
 	}
 	else // others, no extra header
 		IntHeader::mode = IntHeader::NONE;
@@ -1210,5 +1220,5 @@ int main(int argc, char *argv[])
 
 	endt = clock();
 	std::cout << (double)(endt - begint) / CLOCKS_PER_SEC << "\n";
-	cout<<NT_cnt<<endl;
+	cout << NT_cnt << endl;
 }
