@@ -172,13 +172,15 @@ namespace ns3
 				}
 				CheckAndSendPfc(inDev, qIndex);
 			}
+
 			if (m_ccMode == 11 && ch.l3Prot == 0x11 && ch.udp.ih.rate != 0)
 			{
 				sendNT(p, idx);
 			}
 			if (m_ccMode == 13 && ch.l3Prot == 0x11)
 			{
-				Bolt(p, idx);
+				printf("%ld %d %d %d\n", Simulator::Now().GetTimeStep(), m_mmu->hdrm_bytes[inDev][qIndex], m_mmu->ingress_bytes[inDev][qIndex], id);
+				Bolt(p, idx, inDev, qIndex);
 			}
 			// printf("%d %d %d\n", __LINE__, qIndex, ch.udp.pg);
 			m_bytes[inDev][idx][qIndex] += p->GetSize();
@@ -295,7 +297,7 @@ namespace ns3
 			{
 				IntHeader *ih = (IntHeader *)&buf[PppHeader::GetStaticSize() + 20 + 8 + 6]; // ppp, ip, udp, SeqTs, INT
 				Ptr<QbbNetDevice> dev = DynamicCast<QbbNetDevice>(m_devices[ifIndex]);
-				printf("%ld %ld %d\n", Simulator::Now().GetTimeStep(), id, dev->GetQueue()->GetNBytesTotal());
+				// printf("%ld %ld %d\n", Simulator::Now().GetTimeStep(), id, dev->GetQueue()->GetNBytesTotal());
 				if (m_ccMode == 3)
 				{ // HPCC
 					// printf("nhop:%d\n",ih->nhop);
@@ -476,7 +478,7 @@ namespace ns3
 		sm_token[ifIndex] = sm_token[ifIndex] + supply - d;
 		sm_token[ifIndex] = std::min(sm_token[ifIndex], (uint64_t)(1000));
 	}
-	void SwitchNode::Bolt(Ptr<Packet> p, uint32_t ifIndex)
+	void SwitchNode::Bolt(Ptr<Packet> p, uint32_t ifIndex, uint32_t indev, uint32_t qIndex)
 	{
 		// printf("bolt\n");
 		CalculateSupplyToken(p, ifIndex);
@@ -486,17 +488,14 @@ namespace ns3
 		uint8_t *buf = p->GetBuffer();
 		IntHeader *ih = (IntHeader *)&buf[PppHeader::GetStaticSize() + 20 + 8 + 6];
 		// printf("%d %d %d %d\n", dev->GetQueue()->GetNBytesTotal(), ch.udp.ih.bolt.flags & (1 << 5), ch.udp.ih.bolt.flags & (1 << 6), __LINE__);
-		if (dev->GetQueue()->GetNBytesTotal() >= 1000)
+		if (m_mmu->ingress_bytes[indev][qIndex] >= 1000)
 		{
-			// printf("%d\n", __LINE__);
-			// printf("%d\n", __LINE__);
 			if ((((int)ch.udp.ih.bolt.flags) & (1 << 6)) == 0)
 			{
-				// printf("%d\n", __LINE__);
 				SRCHeader srcheader;
 				srcheader.dport = ch.udp.sport;
 				srcheader.bolt.tx = ch.udp.ih.bolt.tx;
-				srcheader.bolt.q_size_and_rate = dev->GetQueue()->GetNBytesTotal() << 8;
+				srcheader.bolt.q_size_and_rate = m_mmu->ingress_bytes[indev][qIndex] << 8;
 				srcheader.bolt.q_size_and_rate |= (dev->GetDataRate().GetBitRate() / 5000000000);
 				Ptr<Packet> srcpkt = Create<Packet>(0);
 				srcpkt->AddHeader(srcheader);

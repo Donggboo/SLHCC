@@ -68,7 +68,7 @@ namespace ns3
 
 		// bolt
 		void CalculateSupplyToken(Ptr<Packet> p, uint32_t ifIndex);
-		void Bolt(Ptr<Packet> p, uint32_t ifIndex);
+		void Bolt(Ptr<Packet> p, uint32_t ifIndex, uint32_t indev, uint32_t qIndex);
 	};
 
 } /* namespace ns3 */

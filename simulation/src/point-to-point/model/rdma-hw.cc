@@ -784,7 +784,7 @@ namespace ns3
 		// std::cout << ((int)ch.udp.ih.bolt.flags & (1u << 3)) << " " << ((int)ch.udp.ih.bolt.flags & (1u << 4)) << " " << ((int)ch.udp.ih.bolt.flags & (1u << 5)) << " " << ((int)ch.udp.ih.bolt.flags & (1u << 6)) << " " << (int)ch.udp.ih.bolt.tx << std::endl;
 		if (m_cc_mode == 13)
 		{
-			printf("%ld %d %d\n", Simulator::Now().GetTimeStep(), qp->m_win, qp->max_win);
+			// printf("%ld %d %d\n", Simulator::Now().GetTimeStep(), qp->m_win, qp->max_win);
 		}
 		return p;
 	}
@@ -1508,15 +1508,16 @@ namespace ns3
 		{
 			new_rate = m_minRate;
 		}
+		//printf("%ld %ld %d\n", Simulator::Now().GetTimeStep(), qp->m_rate.GetBitRate(), qp->m_win);
 		ChangeRate(qp, new_rate);
 	}
 	void RdmaHw::HandleSRCBolt(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader &ch)
 	{
 		// printf("HandleACKBolt\n");
 		uint64_t rtt_now = Simulator::Now().GetTimeStep() - ch.bolt.tx;
-		double r = qp->m_rate.GetBitRate() / ((ch.bolt.q_size_and_rate & (0xff)) * 5000000000);
+		double r = ((double)qp->m_rate.GetBitRate()) / ((ch.bolt.q_size_and_rate & (0xff)) * 5000000000);
 		double q = (ch.bolt.q_size_and_rate >> 8) * r;
-		printf("%ld %ld %ld %d %d\n", q, r, rtt_now, ch.bolt.q_size_and_rate & 0xff, ch.bolt.q_size_and_rate >> 8);
+		// printf("%lf %lf %ld %d %d\n", q, r, rtt_now, ch.bolt.q_size_and_rate & 0x000000ff, ch.bolt.q_size_and_rate >> 8);
 		if ((rtt_now / q) < (Simulator::Now().GetTimeStep() - qp->last_dec_time))
 		{
 			// printf("%ld %ld %d %d\n", Simulator::Now().GetTimeStep(), rtt_now, qp->m_win, ch.bolt.tx);
