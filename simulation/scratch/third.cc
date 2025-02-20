@@ -80,14 +80,14 @@ uint32_t enable_trace = 1;
 
 uint32_t buffer_size = 16;
 
-uint32_t qlen_dump_interval = 100000000, qlen_mon_interval = 100;
-uint64_t qlen_mon_start = 2000000000, qlen_mon_end = 2100000000;
+uint32_t qlen_dump_interval = 1000000, qlen_mon_interval = 1000;
+uint64_t qlen_mon_start = 2000000000, qlen_mon_end = 2010000000;
 string qlen_mon_file;
 
 bool topo_is_fat_tree = false;
 int route_table = 0;
 int fat_tree_k = 8;
-
+int use_APOLLO_route_table = 0;
 unordered_map<uint64_t, uint32_t> rate2kmax, rate2kmin;
 unordered_map<uint64_t, double> rate2pmax;
 
@@ -98,7 +98,7 @@ double NT_cnt = 0;
  ***********************************************/
 std::ifstream topof, flowf, tracef;
 
-NodeContainer n;
+NodeContainer nodes;
 
 uint64_t nic_rate;
 
@@ -127,12 +127,136 @@ std::vector<Ipv4Address> serverAddress;
 // maintain port number for each host pair
 std::unordered_map<uint32_t, unordered_map<uint32_t, uint16_t>> portNumder;
 
+std::vector<int> get_next(int src, int dst, int n)
+{
+	/*if(nodes.GetN()==64){
+		if(n>=48){
+			if(n>=50)return {41,43,45,47};
+			return {40,42,44,46};
+		}
+	}*/
+}
+Ipv4Address node_id_to_ip(uint32_t id)
+{
+	return Ipv4Address(0x0b000001 + ((id / 256) * 0x00010000) + ((id % 256) * 0x00000100));
+}
+
+uint32_t ip_to_node_id(Ipv4Address ip)
+{
+	return (ip.Get() >> 8) & 0xffff;
+}
+void add_route_to_sw(int src, int dst, int size, int sport)
+{
+
+	// src=(src>> 8) & 0xffff;
+	// printf("%d %d %d %d\n", __LINE__, src, dst, sport);
+	Ptr<SwitchNode> src_sw = DynamicCast<SwitchNode>((*nbr2if[nodes.Get(src)].begin()).first);
+	Ptr<SwitchNode> dst_sw = DynamicCast<SwitchNode>((*nbr2if[nodes.Get(dst)].begin()).first);
+	if (src_sw->GetId() == dst_sw->GetId())
+		return;
+	vector<Ptr<SwitchNode>> q;
+	q.push_back(src_sw);
+	vector<int> vis(nodes.GetN() + 1, 0);
+	vector<int> pre(nodes.GetN() + 1, -1);
+	vector<uint64_t> dis(nodes.GetN(), __LONG_LONG_MAX__);
+	dis[src_sw->GetId()] = 0;
+	pre[src_sw->GetId()] = src_sw->GetId();
+	while (q.size() > 0)
+	{
+		Ptr<SwitchNode> now = q.front();
+		for (int i = 1; i < q.size(); i++)
+		{
+			if (vis[q[i]->GetId()] == 0 && (dis[q[i]->GetId()] < dis[now->GetId()] || vis[now->GetId()] == 1))
+			{
+				now = q[i];
+			}
+		}
+		vis[now->GetId()] = 1;
+		q.erase(std::find(q.begin(), q.end(), now));
+		// printf("%d \n", now->GetId());
+		if (now->GetId() == dst_sw->GetId())
+		{
+			int d = now->GetId();
+			int s = pre[d];
+			// printf("%d %d %d \n", s, d, n.GetN());
+			int cnt = 0;
+			while (s != d)
+			{
+				cnt++;
+				Ptr<SwitchNode> _src_sw = DynamicCast<SwitchNode>(nodes.Get(s));
+				Ptr<SwitchNode> _dst_sw = DynamicCast<SwitchNode>(nodes.Get(d));
+				int idx = nbr2if[_src_sw][_dst_sw].idx;
+				_src_sw->APOLLO_route_table[nodes.Get(src)->GetId()][nodes.Get(dst)->GetId()][sport] = idx;
+				// printf("%d %d %d %d \n", _src_sw->GetId(), nodes.Get(src)->GetId(), nodes.Get(dst)->GetId(), idx);
+				//_src_sw->nbr_flow_time[idx] = _src_sw->nbr_flow_time[idx] + _src_sw->nbr_update_time[idx] - Simulator::Now().GetTimeStep();
+				//_src_sw->nbr_update_time[idx] = Simulator::Now().GetTimeStep();
+				_src_sw->nbr_flow_time[idx] += size;
+				int tmp = s;
+				s = pre[s];
+				d = tmp;
+			}
+			NS_ASSERT(cnt <= 4);
+			// printf("\n");
+			/*for (int i = 0; i < nodes.GetN(); i++)
+			{
+				if (nodes.Get(i)->GetNodeType() == 1)
+				{
+					Ptr<SwitchNode> sw = DynamicCast<SwitchNode>(nodes.Get(i));
+					for (auto sip : sw->APOLLO_route_table)
+					{
+						for (auto dip : sip.second)
+						{
+							for (auto sport : dip.second)
+							{
+								if (sip.first == src)
+									printf("%d %d %d %d %d\n", i, sip.first, dip.first, sport.first, sport.second);
+							}
+						}
+					}
+				}
+			}*/
+			return;
+		}
+		for (auto next : nbr2if[now])
+		{
+			if (next.first->GetNodeType() == 1)
+			{
+				Ptr<SwitchNode> next_sw = DynamicCast<SwitchNode>(next.first);
+				bool in_next = false;
+				for (auto _n : now->m_rtTable[node_id_to_ip(dst).Get()])
+				{
+					if (_n == nbr2if[now][next_sw].idx)
+					{
+						in_next = true;
+						break;
+					}
+				}
+				if (!in_next)
+				{
+					continue;
+				}
+				if (vis[next_sw->GetId()] == 0)
+				{
+					if (dis[next_sw->GetId()] > std::max(dis[now->GetId()], now->nbr_flow_time[nbr2if[now][next_sw].idx] - now->m_txBytes[nbr2if[now][next_sw].idx]))
+					{
+						q.push_back(next_sw);
+						pre[next_sw->GetId()] = now->GetId();
+						dis[next_sw->GetId()] = std::max(dis[now->GetId()], now->nbr_flow_time[nbr2if[now][next_sw].idx] - now->m_txBytes[nbr2if[now][next_sw].idx]);
+					}
+				}
+			}
+		}
+	}
+	// printf("%d\n", __LINE__);
+}
+
 struct FlowInput
 {
 	uint32_t src, dst, pg, maxPacketCount, port, dport;
 	double start_time;
 	uint32_t idx;
 };
+
 FlowInput flow_input = {0};
 uint32_t flow_num;
 
@@ -140,11 +264,14 @@ void ReadFlowInput()
 {
 	if (flow_input.idx < flow_num)
 	{
+		if (!use_APOLLO_route_table)
+			flowf >> flow_input.src >> flow_input.dst >> flow_input.pg >> flow_input.dport >> flow_input.maxPacketCount >> flow_input.start_time;
+		else
+			flowf >> flow_input.src >> flow_input.dst >> flow_input.pg >> flow_input.maxPacketCount >> flow_input.start_time;
 
-		flowf >> flow_input.src >> flow_input.dst >> flow_input.pg >> flow_input.dport >> flow_input.maxPacketCount >> flow_input.start_time;
 		dst_host.push_back(flow_input.dst);
 		dst_src[flow_input.dst] = flow_input.src;
-		NS_ASSERT(n.Get(flow_input.src)->GetNodeType() == 0 && n.Get(flow_input.dst)->GetNodeType() == 0);
+		NS_ASSERT(nodes.Get(flow_input.src)->GetNodeType() == 0 && nodes.Get(flow_input.dst)->GetNodeType() == 0);
 	}
 }
 void ScheduleFlowInputs()
@@ -152,12 +279,11 @@ void ScheduleFlowInputs()
 	while (flow_input.idx < flow_num && Seconds(flow_input.start_time) == Simulator::Now())
 	{
 		uint32_t port = portNumder[flow_input.src][flow_input.dst]++; // get a new port number
-		RdmaClientHelper clientHelper(flow_input.pg, serverAddress[flow_input.src], serverAddress[flow_input.dst], port, flow_input.dport, flow_input.maxPacketCount, has_win ? (global_t == 1 ? maxBdp : pairBdp[n.Get(flow_input.src)][n.Get(flow_input.dst)]) : 0, global_t == 1 ? maxRtt : pairRtt[flow_input.src][flow_input.dst]);
+		RdmaClientHelper clientHelper(flow_input.pg, serverAddress[flow_input.src], serverAddress[flow_input.dst], port, flow_input.dport, flow_input.maxPacketCount, has_win ? (global_t == 1 ? maxBdp : pairBdp[nodes.Get(flow_input.src)][nodes.Get(flow_input.dst)]) : 0, global_t == 1 ? maxRtt : pairRtt[flow_input.src][flow_input.dst]);
 		// RdmaClientHelper clientHelper(flow_input.pg, serverAddress[flow_input.src], serverAddress[flow_input.dst], port, flow_input.dport, flow_input.maxPacketCount, maxBdp, global_t==1?maxRtt:pairRtt[flow_input.src][flow_input.dst]);
-		ApplicationContainer appCon = clientHelper.Install(n.Get(flow_input.src));
+		ApplicationContainer appCon = clientHelper.Install(nodes.Get(flow_input.src));
 		appCon.Start(Time(0));
-
-		// get the next flow input
+		//   get the next flow input
 		flow_input.idx++;
 		ReadFlowInput();
 	}
@@ -173,16 +299,6 @@ void ScheduleFlowInputs()
 	}
 }
 
-Ipv4Address node_id_to_ip(uint32_t id)
-{
-	return Ipv4Address(0x0b000001 + ((id / 256) * 0x00010000) + ((id % 256) * 0x00000100));
-}
-
-uint32_t ip_to_node_id(Ipv4Address ip)
-{
-	return (ip.Get() >> 8) & 0xffff;
-}
-
 // fct file format
 void qp_finish(FILE *fout, Ptr<RdmaQueuePair> q)
 {
@@ -192,14 +308,45 @@ void qp_finish(FILE *fout, Ptr<RdmaQueuePair> q)
 	// printf("c:%d\n",CustomHeader::GetStaticWholeHeaderSize() - IntHeader::GetStaticSize());
 	uint64_t standalone_fct = base_rtt + total_bytes * 8000000000lu / b;
 	// sip, dip, sport, dport, size (B), start_time, fct (ns), standalone_fct (ns)
-	fprintf(fout, "%08x %08x %u %u %lu %lu %lu %lu\n", q->sip.Get(), q->dip.Get(), q->sport, q->dport, q->m_size, q->startTime.GetTimeStep(), (Simulator::Now() - q->startTime).GetTimeStep(), standalone_fct);
+	fprintf(fout, "%08x %08x %u %u %lu %lu %lu %lu\n", ip_to_node_id(q->sip), ip_to_node_id(q->dip), q->sport, q->dport, q->m_size, q->startTime.GetTimeStep(), (Simulator::Now() - q->startTime).GetTimeStep(), standalone_fct);
 	fflush(fout);
 
 	// remove rxQp from the receiver
-	Ptr<Node> dstNode = n.Get(did);
+	Ptr<Node> dstNode = nodes.Get(did);
 	Ptr<RdmaDriver> rdma = dstNode->GetObject<RdmaDriver>();
 	rdma->m_rdma->DeleteRxQp(q->sip.Get(), q->m_pg, q->sport);
 	NT_cnt += q->nt_cnt;
+	/*int src = (q->sip.Get() >> 8) & 0xffff;
+	int dst = (q->dip.Get() >> 8) & 0xffff;
+	int cnt = 0;
+	for (int i = 0; i < nodes.GetN(); i++)
+	{
+		if (nodes.Get(i)->GetNodeType() == 1)
+		{
+			Ptr<SwitchNode> sw = DynamicCast<SwitchNode>(nodes.Get(i));
+			for (auto sip : sw->APOLLO_route_table)
+			{
+				for (auto dip : sip.second)
+				{
+					for (auto sport : dip.second)
+					{
+						if (sip.first == src && dip.first == dst && sport.first == q->sport && sport.second != 0)
+						{
+							cnt++;
+							// printf("%d %d %d %d %d %ld %ld\n", i, src, dst, q->sport, sport.second, sw->nbr_flow_time[sport.second], q->m_size);
+							sw->nbr_flow_time[sport.second] -= q->m_size;
+							if (sw->nbr_flow_time[sport.second] <= 0)
+							{
+								sw->nbr_flow_time[sport.second] = 0;
+							}
+							sw->APOLLO_route_table[sip.first][dip.first].erase(sw->APOLLO_route_table[sip.first][dip.first].find(sport.first));
+						}
+					}
+				}
+			}
+		}
+	}
+	NS_ASSERT(cnt <= 4);*/
 }
 
 // pfc file format
@@ -342,9 +489,9 @@ void CalculateRoute(Ptr<Node> host)
 
 void CalculateRoutes(NodeContainer &n)
 {
-	for (int i = 0; i < (int)n.GetN(); i++)
+	for (int i = 0; i < (int)nodes.GetN(); i++)
 	{
-		Ptr<Node> node = n.Get(i);
+		Ptr<Node> node = nodes.Get(i);
 		if (node->GetNodeType() == 0)
 			CalculateRoute(node);
 	}
@@ -390,12 +537,12 @@ void TakeDownLink(NodeContainer n, Ptr<Node> a, Ptr<Node> b)
 	nextHop.clear();
 	CalculateRoutes(n);
 	// clear routing tables
-	for (uint32_t i = 0; i < n.GetN(); i++)
+	for (uint32_t i = 0; i < nodes.GetN(); i++)
 	{
-		if (n.Get(i)->GetNodeType() == 1)
-			DynamicCast<SwitchNode>(n.Get(i))->ClearTable();
+		if (nodes.Get(i)->GetNodeType() == 1)
+			DynamicCast<SwitchNode>(nodes.Get(i))->ClearTable();
 		else
-			n.Get(i)->GetObject<RdmaDriver>()->m_rdma->ClearTable();
+			nodes.Get(i)->GetObject<RdmaDriver>()->m_rdma->ClearTable();
 	}
 	DynamicCast<QbbNetDevice>(a->GetDevice(nbr2if[a][b].idx))->TakeDown();
 	DynamicCast<QbbNetDevice>(b->GetDevice(nbr2if[b][a].idx))->TakeDown();
@@ -403,18 +550,18 @@ void TakeDownLink(NodeContainer n, Ptr<Node> a, Ptr<Node> b)
 	SetRoutingEntries();
 
 	// redistribute qp on each host
-	for (uint32_t i = 0; i < n.GetN(); i++)
+	for (uint32_t i = 0; i < nodes.GetN(); i++)
 	{
-		if (n.Get(i)->GetNodeType() == 0)
-			n.Get(i)->GetObject<RdmaDriver>()->m_rdma->RedistributeQp();
+		if (nodes.Get(i)->GetNodeType() == 0)
+			nodes.Get(i)->GetObject<RdmaDriver>()->m_rdma->RedistributeQp();
 	}
 }
 
 uint64_t get_nic_rate(NodeContainer &n)
 {
-	for (uint32_t i = 0; i < n.GetN(); i++)
-		if (n.Get(i)->GetNodeType() == 0)
-			return DynamicCast<QbbNetDevice>(n.Get(i)->GetDevice(1))->GetDataRate().GetBitRate();
+	for (uint32_t i = 0; i < nodes.GetN(); i++)
+		if (nodes.Get(i)->GetNodeType() == 0)
+			return DynamicCast<QbbNetDevice>(nodes.Get(i)->GetDevice(1))->GetDataRate().GetBitRate();
 }
 
 int main(int argc, char *argv[])
@@ -811,6 +958,12 @@ int main(int argc, char *argv[])
 				conf >> v;
 				fat_tree_k = v;
 			}
+			else if (key.compare("use_APOLLO_route_table") == 0)
+			{
+				int v;
+				conf >> v;
+				use_APOLLO_route_table = v;
+			}
 			fflush(stdout);
 		}
 		conf.close();
@@ -883,11 +1036,11 @@ int main(int argc, char *argv[])
 	for (uint32_t i = 0; i < node_num; i++)
 	{
 		if (node_type[i] == 0)
-			n.Add(CreateObject<Node>());
+			nodes.Add(CreateObject<Node>());
 		else
 		{
 			Ptr<SwitchNode> sw = CreateObject<SwitchNode>();
-			n.Add(sw);
+			nodes.Add(sw);
 			sw->SetAttribute("EcnEnabled", BooleanValue(enable_qcn));
 		}
 	}
@@ -895,14 +1048,14 @@ int main(int argc, char *argv[])
 	NS_LOG_INFO("Create nodes.");
 
 	InternetStackHelper internet;
-	internet.Install(n);
+	internet.Install(nodes);
 
 	//
 	// Assign IP to each server
 	//
 	for (uint32_t i = 0; i < node_num; i++)
 	{
-		if (n.Get(i)->GetNodeType() == 0)
+		if (nodes.Get(i)->GetNodeType() == 0)
 		{ // is server
 			serverAddress.resize(i + 1);
 			serverAddress[i] = node_id_to_ip(i);
@@ -933,7 +1086,7 @@ int main(int argc, char *argv[])
 		double error_rate;
 		topof >> src >> dst >> data_rate >> link_delay >> error_rate;
 
-		Ptr<Node> snode = n.Get(src), dnode = n.Get(dst);
+		Ptr<Node> snode = nodes.Get(src), dnode = nodes.Get(dst);
 
 		qbb.SetDeviceAttribute("DataRate", StringValue(data_rate));
 		qbb.SetChannelAttribute("Delay", StringValue(link_delay));
@@ -982,7 +1135,18 @@ int main(int argc, char *argv[])
 		nbr2if[dnode][snode].up = true;
 		nbr2if[dnode][snode].delay = DynamicCast<QbbChannel>(DynamicCast<QbbNetDevice>(d.Get(1))->GetChannel())->GetDelay().GetTimeStep();
 		nbr2if[dnode][snode].bw = DynamicCast<QbbNetDevice>(d.Get(1))->GetDataRate().GetBitRate();
-
+		if (snode->GetNodeType() == 1)
+		{
+			Ptr<SwitchNode> sw = DynamicCast<SwitchNode>(snode);
+			sw->nbr_flow_time[nbr2if[snode][dnode].idx] = 0;
+			sw->nbr_update_time[nbr2if[snode][dnode].idx] = 0;
+		}
+		if (dnode->GetNodeType() == 1)
+		{
+			Ptr<SwitchNode> sw = DynamicCast<SwitchNode>(dnode);
+			sw->nbr_flow_time[nbr2if[snode][dnode].idx] = 0;
+			sw->nbr_update_time[nbr2if[snode][dnode].idx] = 0;
+		}
 		// This is just to set up the connectivity between nodes. The IP addresses are useless
 		char ipstring[16];
 		sprintf(ipstring, "10.%d.%d.0", i / 254 + 1, i % 254 + 1);
@@ -994,14 +1158,14 @@ int main(int argc, char *argv[])
 		DynamicCast<QbbNetDevice>(d.Get(1))->TraceConnectWithoutContext("QbbPfc", MakeBoundCallback(&get_pfc, pfc_file, DynamicCast<QbbNetDevice>(d.Get(1))));
 	}
 
-	nic_rate = get_nic_rate(n);
+	nic_rate = get_nic_rate(nodes);
 
 	// config switch
 	for (uint32_t i = 0; i < node_num; i++)
 	{
-		if (n.Get(i)->GetNodeType() == 1)
+		if (nodes.Get(i)->GetNodeType() == 1)
 		{ // is switch
-			Ptr<SwitchNode> sw = DynamicCast<SwitchNode>(n.Get(i));
+			Ptr<SwitchNode> sw = DynamicCast<SwitchNode>(nodes.Get(i));
 			uint32_t shift = 3; // by default 1/8
 			for (uint32_t j = 1; j < sw->GetNDevices(); j++)
 			{
@@ -1028,6 +1192,7 @@ int main(int argc, char *argv[])
 			sw->m_mmu->ConfigNPort(sw->GetNDevices() - 1);
 			sw->m_mmu->ConfigBufferSize(buffer_size * 1024 * 1024);
 			sw->m_mmu->node_id = sw->GetId();
+			sw->use_APOLLO_route_table = use_APOLLO_route_table;
 		}
 	}
 
@@ -1038,7 +1203,7 @@ int main(int argc, char *argv[])
 	//
 	for (uint32_t i = 0; i < node_num; i++)
 	{
-		if (n.Get(i)->GetNodeType() == 0)
+		if (nodes.Get(i)->GetNodeType() == 0)
 		{ // is server
 			// create RdmaHw
 			Ptr<RdmaHw> rdmaHw = CreateObject<RdmaHw>();
@@ -1065,9 +1230,10 @@ int main(int argc, char *argv[])
 			rdmaHw->SetAttribute("RateBound", BooleanValue(rate_bound));
 			rdmaHw->SetAttribute("DctcpRateAI", DataRateValue(DataRate(dctcp_rate_ai)));
 			rdmaHw->SetPintSmplThresh(pint_prob);
+			rdmaHw->add_route = add_route_to_sw;
 			// create and install RdmaDriver
 			Ptr<RdmaDriver> rdma = CreateObject<RdmaDriver>();
-			Ptr<Node> node = n.Get(i);
+			Ptr<Node> node = nodes.Get(i);
 			rdma->SetNode(node);
 			rdma->SetRdmaHw(rdmaHw);
 
@@ -1085,7 +1251,7 @@ int main(int argc, char *argv[])
 		RdmaEgressQueue::ack_q_idx = 3;
 
 	// setup routing
-	CalculateRoutes(n);
+	CalculateRoutes(nodes);
 	SetRoutingEntries();
 
 	//
@@ -1094,19 +1260,19 @@ int main(int argc, char *argv[])
 	maxRtt = maxBdp = 0;
 	for (uint32_t i = 0; i < node_num; i++)
 	{
-		if (n.Get(i)->GetNodeType() != 0)
+		if (nodes.Get(i)->GetNodeType() != 0)
 			continue;
 		for (uint32_t j = 0; j < node_num; j++)
 		{
-			if (n.Get(j)->GetNodeType() != 0)
+			if (nodes.Get(j)->GetNodeType() != 0)
 				continue;
-			uint64_t delay = pairDelay[n.Get(i)][n.Get(j)];
-			uint64_t txDelay = pairTxDelay[n.Get(i)][n.Get(j)];
+			uint64_t delay = pairDelay[nodes.Get(i)][nodes.Get(j)];
+			uint64_t txDelay = pairTxDelay[nodes.Get(i)][nodes.Get(j)];
 			uint64_t rtt = delay * 2 + txDelay;
 			// printf("%ld %ld\n",delay,txDelay);
 			uint64_t bw = pairBw[i][j];
 			uint64_t bdp = rtt * bw / 1000000000 / 8;
-			pairBdp[n.Get(i)][n.Get(j)] = bdp;
+			pairBdp[nodes.Get(i)][nodes.Get(j)] = bdp;
 			pairRtt[i][j] = rtt;
 			// printf("rtt:%ld bdp:%ld\n",rtt,bdp);
 			if (bdp > maxBdp)
@@ -1123,9 +1289,9 @@ int main(int argc, char *argv[])
 	// maxRtt=2080;
 	for (uint32_t i = 0; i < node_num; i++)
 	{
-		if (n.Get(i)->GetNodeType() == 1)
+		if (nodes.Get(i)->GetNodeType() == 1)
 		{ // switch
-			Ptr<SwitchNode> sw = DynamicCast<SwitchNode>(n.Get(i));
+			Ptr<SwitchNode> sw = DynamicCast<SwitchNode>(nodes.Get(i));
 			sw->SetAttribute("CcMode", UintegerValue(cc_mode));
 			sw->SetAttribute("MaxRtt", UintegerValue(maxRtt));
 		}
@@ -1140,11 +1306,11 @@ int main(int argc, char *argv[])
 	{
 		uint32_t nid;
 		tracef >> nid;
-		if (nid >= n.GetN())
+		if (nid >= nodes.GetN())
 		{
 			continue;
 		}
-		trace_nodes = NodeContainer(trace_nodes, n.Get(nid));
+		trace_nodes = NodeContainer(trace_nodes, nodes.Get(nid));
 	}
 
 	FILE *trace_output = fopen(trace_output_file.c_str(), "w");
@@ -1178,10 +1344,10 @@ int main(int argc, char *argv[])
 	for (uint32_t i = 0; i < node_num; i++)
 	{
 		// printf("%d\n",n.Get(i)->GetNDevices());
-		if (n.Get(i)->GetNodeType() == 0)
+		if (nodes.Get(i)->GetNodeType() == 0)
 			for (uint32_t j = 0; j < node_num; j++)
 			{
-				if (n.Get(j)->GetNodeType() == 0)
+				if (nodes.Get(j)->GetNodeType() == 0)
 					portNumder[i][j] = 10000; // each host pair use port number from 10000
 			}
 	}
@@ -1199,12 +1365,12 @@ int main(int argc, char *argv[])
 	// schedule link down
 	if (link_down_time > 0)
 	{
-		Simulator::Schedule(Seconds(2) + MicroSeconds(link_down_time), &TakeDownLink, n, n.Get(link_down_A), n.Get(link_down_B));
+		Simulator::Schedule(Seconds(2) + MicroSeconds(link_down_time), &TakeDownLink, nodes, nodes.Get(link_down_A), nodes.Get(link_down_B));
 	}
 
 	// schedule buffer monitor
 	FILE *qlen_output = fopen(qlen_mon_file.c_str(), "w");
-	Simulator::Schedule(NanoSeconds(qlen_mon_start), &monitor_buffer, qlen_output, &n);
+	Simulator::Schedule(NanoSeconds(qlen_mon_start), &monitor_buffer, qlen_output, &nodes);
 	//
 	// Now, do the actual simulation.
 	//

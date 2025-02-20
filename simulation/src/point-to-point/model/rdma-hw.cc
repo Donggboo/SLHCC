@@ -247,7 +247,8 @@ namespace ns3
 		qp->SetBaseRtt(baseRtt);
 		qp->SetVarWin(m_var_win);
 		qp->SetAppNotifyCallback(notifyAppFinish);
-
+		//printf("%d %d %d %d\n", (sip.Get() >> 8) & 0xffff, (dip.Get() >> 8) & 0xffff, size, sport);
+		//add_route((sip.Get() >> 8) & 0xffff, (dip.Get() >> 8) & 0xffff, size, sport);
 		// add qp
 		uint32_t nic_idx = GetNicIdxOfQp(qp);
 		m_nic[nic_idx].qpGrp->AddQp(qp);
@@ -749,7 +750,7 @@ namespace ns3
 			ih.bolt.flags |= (qp->snd_nxt <= qp->m_win ? 1u : 0u) << 4;
 			ih.bolt.flags |= (qp->snd_nxt + qp->m_win >= qp->m_size ? 1u : 0u) << 3;
 			ih.bolt.flags |= 1u << 5;
-			ih.bolt.flags &= (~(1u << 6)) % 256;
+			ih.bolt.flags &= (~(1u << 6));
 			ih.bolt.tx = Simulator::Now().GetTimeStep();
 		}
 		seqTs.ih = ih;
@@ -1498,7 +1499,7 @@ namespace ns3
 		{
 			qp->m_win = m_mtu;
 		}
-		DataRate new_rate = qp->m_max_rate * (qp->m_win / qp->max_win);
+		DataRate new_rate = qp->m_max_rate * ((double)qp->m_win / qp->max_win);
 		new_rate += m_rai;
 		if (new_rate > qp->m_max_rate)
 		{
@@ -1508,13 +1509,13 @@ namespace ns3
 		{
 			new_rate = m_minRate;
 		}
-		//printf("%ld %ld %d\n", Simulator::Now().GetTimeStep(), qp->m_rate.GetBitRate(), qp->m_win);
+		// printf("%ld %ld %d %d %d\n", Simulator::Now().GetTimeStep(), qp->m_rate.GetBitRate(), qp->m_win, (int)ch.ack.ih.bolt.flags & (1u << 5), ch.ack.ih.bolt.q_size_and_rate >> 8);
 		ChangeRate(qp, new_rate);
 	}
 	void RdmaHw::HandleSRCBolt(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader &ch)
 	{
 		// printf("HandleACKBolt\n");
-		uint64_t rtt_now = Simulator::Now().GetTimeStep() - ch.bolt.tx;
+		double rtt_now = Simulator::Now().GetTimeStep() - ch.bolt.tx;
 		double r = ((double)qp->m_rate.GetBitRate()) / ((ch.bolt.q_size_and_rate & (0xff)) * 5000000000);
 		double q = (ch.bolt.q_size_and_rate >> 8) * r;
 		// printf("%lf %lf %ld %d %d\n", q, r, rtt_now, ch.bolt.q_size_and_rate & 0x000000ff, ch.bolt.q_size_and_rate >> 8);

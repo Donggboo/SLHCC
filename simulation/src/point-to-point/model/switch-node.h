@@ -14,6 +14,7 @@ namespace ns3
 
 	class SwitchNode : public Node
 	{
+	public:
 		static const uint32_t pCnt = 257; // Number of ports used
 		static const uint32_t qCnt = 8;	  // Number of queues/priorities used
 		uint32_t m_ecmpSeed;
@@ -27,30 +28,27 @@ namespace ns3
 		uint32_t m_lastPktSize[pCnt];
 		uint64_t m_lastPktTs[pCnt]; // ns
 		double m_u[pCnt];
-
-	protected:
 		bool m_ecnEnabled;
 		uint32_t m_ccMode;
 		uint64_t m_maxRtt;
 		uint32_t m_ackHighPrio; // set high priority for ACK/NACK
-
-	private:
 		int GetOutDev(Ptr<const Packet>, CustomHeader &ch);
 		void SendToDev(Ptr<Packet> p, CustomHeader &ch);
 		static uint32_t EcmpHash(const uint8_t *key, size_t len, uint32_t seed);
 		void CheckAndSendPfc(uint32_t inDev, uint32_t qIndex);
 		void CheckAndSendResume(uint32_t inDev, uint32_t qIndex);
-
-	public:
 		uint64_t id;
 		Ptr<SwitchMmu> m_mmu;
 		std::unordered_map<int, int> fat_tree_route_table;
 		std::unordered_map<int, int> port_table;
-		std::vector<int> port_sw;
+		std::unordered_map<int, std::unordered_map<int, std::unordered_map<int, int>>> APOLLO_route_table;
+		std::unordered_map<int, double> nbr_update_time;
+		std::unordered_map<int, uint64_t> nbr_flow_time;
 		uint64_t last_sm_time[pCnt];
 		uint64_t sm_token[pCnt];
 		uint64_t pur_token[pCnt];
 		bool use_fat_tree_route_table = false;
+		bool use_APOLLO_route_table;
 		int sw_t = 0;
 		static TypeId GetTypeId(void);
 		SwitchNode();
@@ -69,6 +67,8 @@ namespace ns3
 		// bolt
 		void CalculateSupplyToken(Ptr<Packet> p, uint32_t ifIndex);
 		void Bolt(Ptr<Packet> p, uint32_t ifIndex, uint32_t indev, uint32_t qIndex);
+
+		void addd_route(int sip, int dip, int sport, int idx);
 	};
 
 } /* namespace ns3 */

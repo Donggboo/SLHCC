@@ -70,6 +70,7 @@ namespace ns3
 			pur_token[i] = 0;
 		}
 		m_ackHighPrio = 1;
+		use_APOLLO_route_table = false;
 	}
 
 	int SwitchNode::GetOutDev(Ptr<const Packet> p, CustomHeader &ch)
@@ -86,12 +87,26 @@ namespace ns3
 		// entry found
 		auto &nexthops = entry->second;
 		// printf("%d\n",use_fat_tree_route_table);
-		if (use_fat_tree_route_table)
+		if (use_fat_tree_route_table && ch.l3Prot == 0x11)
 		{
 			if (fat_tree_route_table.find(ch.dip >> 8 & 0xffff) != fat_tree_route_table.end())
 			{
 				int idx = fat_tree_route_table[ch.dip >> 8 & 0xffff];
 				return idx;
+			}
+		}
+		if (use_APOLLO_route_table && ch.l3Prot == 0x11)
+		{
+			int idx = APOLLO_route_table[(ch.sip >> 8) & 0xffff][(ch.dip >> 8) & 0xffff][ch.udp.sport];
+			if (idx != 0)
+			{
+				if (((ch.sip >> 8) & 0xffff) == 1)
+				{
+					;
+					// printf("%d %d %d %d %d\n", id, (ch.sip >> 8) & 0xffff, (ch.dip >> 8) & 0xffff, ch.udp.sport, idx);
+				}
+				if (idx != 0)
+					return idx;
 			}
 		}
 		// pick one next hop based on hash
@@ -135,12 +150,9 @@ namespace ns3
 
 	void SwitchNode::SendToDev(Ptr<Packet> p, CustomHeader &ch)
 	{
-		// printf("SwitchNode::SendToDev\n");
 		int idx = GetOutDev(p, ch);
-		// printf("%d\n", __LINE__);
 		if (idx >= 0)
 		{
-			// printf("%d\n", __LINE__);
 			NS_ASSERT_MSG(m_devices[idx]->IsLinkUp(), "The routing table look up should return link that is up");
 
 			// determine the qIndex
@@ -153,11 +165,9 @@ namespace ns3
 			{
 				qIndex = (ch.l3Prot == 0x06 ? 1 : ch.udp.pg); // if TCP, put to queue 1
 			}
-			// printf("%d\n", __LINE__);
 			//  admission control
 			FlowIdTag t;
 			p->PeekPacketTag(t);
-			// printf("%d\n", __LINE__);
 			uint32_t inDev = t.GetFlowId();
 			if (qIndex != 0)
 			{ // not highest priority
@@ -179,20 +189,15 @@ namespace ns3
 			}
 			if (m_ccMode == 13 && ch.l3Prot == 0x11)
 			{
-				printf("%ld %d %d %d\n", Simulator::Now().GetTimeStep(), m_mmu->hdrm_bytes[inDev][qIndex], m_mmu->ingress_bytes[inDev][qIndex], id);
 				Bolt(p, idx, inDev, qIndex);
 			}
-			// printf("%d %d %d\n", __LINE__, qIndex, ch.udp.pg);
 			m_bytes[inDev][idx][qIndex] += p->GetSize();
 			m_devices[idx]->SwitchSend(qIndex, p, ch);
-			// printf("%d\n", __LINE__);
 		}
 		else
 		{
-			// printf("SwitchNode::SendToDevend1\n");
 			return; // Drop
 		}
-		// printf("SwitchNode::SendToDevend2\n");
 	}
 
 	uint32_t SwitchNode::EcmpHash(const uint8_t *key, size_t len, uint32_t seed)
@@ -297,7 +302,8 @@ namespace ns3
 			{
 				IntHeader *ih = (IntHeader *)&buf[PppHeader::GetStaticSize() + 20 + 8 + 6]; // ppp, ip, udp, SeqTs, INT
 				Ptr<QbbNetDevice> dev = DynamicCast<QbbNetDevice>(m_devices[ifIndex]);
-				// printf("%ld %ld %d\n", Simulator::Now().GetTimeStep(), id, dev->GetQueue()->GetNBytesTotal());
+				// if (dev->GetQueue()->GetNBytesTotal() > 2000)
+				/// printf("%ld %ld %d %d\n", Simulator::Now().GetTimeStep(), id, dev->GetQueue()->GetNBytesTotal(), GetId());
 				if (m_ccMode == 3)
 				{ // HPCC
 					// printf("nhop:%d\n",ih->nhop);
@@ -384,7 +390,19 @@ namespace ns3
 				}
 			}
 		}
-		m_txBytes[ifIndex] += p->GetSize();
+		CustomHeader ch(CustomHeader::L2_Header | CustomHeader::L3_Header | CustomHeader::L4_Header);
+		ch.getInt = 1; // parse INT header
+		p->PeekHeader(ch);
+		if (ch.l3Prot == 0x11 && use_APOLLO_route_table)
+		{
+			m_txBytes[ifIndex] += p->GetSize() - 48;
+			// printf("%d\n", p->GetSize());
+		}
+		else
+		{
+			m_txBytes[ifIndex] += p->GetSize();
+		}
+		// p->g
 		m_lastPktSize[ifIndex] = p->GetSize();
 		m_lastPktTs[ifIndex] = Simulator::Now().GetTimeStep();
 	}
@@ -487,8 +505,8 @@ namespace ns3
 		p->PeekHeader(ch);
 		uint8_t *buf = p->GetBuffer();
 		IntHeader *ih = (IntHeader *)&buf[PppHeader::GetStaticSize() + 20 + 8 + 6];
-		// printf("%d %d %d %d\n", dev->GetQueue()->GetNBytesTotal(), ch.udp.ih.bolt.flags & (1 << 5), ch.udp.ih.bolt.flags & (1 << 6), __LINE__);
-		if (m_mmu->ingress_bytes[indev][qIndex] >= 1000)
+		// printf("%d %d %d %d\n", m_mmu->ingress_bytes[indev][qIndex], ch.udp.ih.bolt.flags & (1 << 5), ch.udp.ih.bolt.flags & (1 << 6), __LINE__);
+		if (m_mmu->ingress_bytes[indev][qIndex] >= 2000)
 		{
 			if ((((int)ch.udp.ih.bolt.flags) & (1 << 6)) == 0)
 			{
@@ -516,7 +534,7 @@ namespace ns3
 				// printf("%d %d %d %d\n", chh.l3Prot, chh.bolt.tx, chh.bolt.q_size_and_rate >> 8, __LINE__);
 				SendToDev(srcpkt, chh);
 			}
-			ih->bolt.flags &= !(1u << 5);
+			ih->bolt.flags &= ~(1u << 5);
 			ih->bolt.flags |= (1u << 6);
 		}
 		else if ((ch.udp.ih.bolt.flags & (1u << 3)) != 0)
@@ -538,10 +556,11 @@ namespace ns3
 			}
 			else
 			{
-				ih->bolt.flags &= !(1u << 5);
+				ih->bolt.flags &= ~(1u << 5);
 			}
 		}
-		// printf("bolt:end\n");
+		// printf("%d %d %d %d\n", m_mmu->ingress_bytes[indev][qIndex], ch.udp.ih.bolt.flags & (1 << 5), ch.udp.ih.bolt.flags & (1 << 6), __LINE__);
+		//  printf("bolt:end\n");
 	}
 
 } /* namespace ns3 */

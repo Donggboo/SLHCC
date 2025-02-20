@@ -162,10 +162,12 @@ namespace ns3
 		void HandleLHCC(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader &ch);
 
 		/*********************
-		 * LHCC
+		 * BOLT
 		 ********************/
 		void HandleACKBolt(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader &ch);
 		void HandleSRCBolt(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader &ch);
+
+		void (*add_route)(int, int, int, int);
 	};
 
 } /* namespace ns3 */
