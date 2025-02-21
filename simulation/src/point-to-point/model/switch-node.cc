@@ -97,6 +97,7 @@ namespace ns3
 		}
 		if (use_APOLLO_route_table && ch.l3Prot == 0x11)
 		{
+			
 			int idx = APOLLO_route_table[(ch.sip >> 8) & 0xffff][(ch.dip >> 8) & 0xffff][ch.udp.sport];
 			if (idx != 0)
 			{

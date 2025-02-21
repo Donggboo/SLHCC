@@ -173,12 +173,10 @@ void add_route_to_sw(int src, int dst, int size, int sport)
 		}
 		vis[now->GetId()] = 1;
 		q.erase(std::find(q.begin(), q.end(), now));
-		// printf("%d \n", now->GetId());
 		if (now->GetId() == dst_sw->GetId())
 		{
 			int d = now->GetId();
 			int s = pre[d];
-			// printf("%d %d %d \n", s, d, n.GetN());
 			int cnt = 0;
 			while (s != d)
 			{
@@ -187,34 +185,11 @@ void add_route_to_sw(int src, int dst, int size, int sport)
 				Ptr<SwitchNode> _dst_sw = DynamicCast<SwitchNode>(nodes.Get(d));
 				int idx = nbr2if[_src_sw][_dst_sw].idx;
 				_src_sw->APOLLO_route_table[nodes.Get(src)->GetId()][nodes.Get(dst)->GetId()][sport] = idx;
-				// printf("%d %d %d %d \n", _src_sw->GetId(), nodes.Get(src)->GetId(), nodes.Get(dst)->GetId(), idx);
-				//_src_sw->nbr_flow_time[idx] = _src_sw->nbr_flow_time[idx] + _src_sw->nbr_update_time[idx] - Simulator::Now().GetTimeStep();
-				//_src_sw->nbr_update_time[idx] = Simulator::Now().GetTimeStep();
 				_src_sw->nbr_flow_time[idx] += size;
 				int tmp = s;
 				s = pre[s];
 				d = tmp;
 			}
-			NS_ASSERT(cnt <= 4);
-			// printf("\n");
-			/*for (int i = 0; i < nodes.GetN(); i++)
-			{
-				if (nodes.Get(i)->GetNodeType() == 1)
-				{
-					Ptr<SwitchNode> sw = DynamicCast<SwitchNode>(nodes.Get(i));
-					for (auto sip : sw->APOLLO_route_table)
-					{
-						for (auto dip : sip.second)
-						{
-							for (auto sport : dip.second)
-							{
-								if (sip.first == src)
-									printf("%d %d %d %d %d\n", i, sip.first, dip.first, sport.first, sport.second);
-							}
-						}
-					}
-				}
-			}*/
 			return;
 		}
 		for (auto next : nbr2if[now])
@@ -247,7 +222,6 @@ void add_route_to_sw(int src, int dst, int size, int sport)
 			}
 		}
 	}
-	// printf("%d\n", __LINE__);
 }
 
 struct FlowInput
@@ -316,37 +290,6 @@ void qp_finish(FILE *fout, Ptr<RdmaQueuePair> q)
 	Ptr<RdmaDriver> rdma = dstNode->GetObject<RdmaDriver>();
 	rdma->m_rdma->DeleteRxQp(q->sip.Get(), q->m_pg, q->sport);
 	NT_cnt += q->nt_cnt;
-	/*int src = (q->sip.Get() >> 8) & 0xffff;
-	int dst = (q->dip.Get() >> 8) & 0xffff;
-	int cnt = 0;
-	for (int i = 0; i < nodes.GetN(); i++)
-	{
-		if (nodes.Get(i)->GetNodeType() == 1)
-		{
-			Ptr<SwitchNode> sw = DynamicCast<SwitchNode>(nodes.Get(i));
-			for (auto sip : sw->APOLLO_route_table)
-			{
-				for (auto dip : sip.second)
-				{
-					for (auto sport : dip.second)
-					{
-						if (sip.first == src && dip.first == dst && sport.first == q->sport && sport.second != 0)
-						{
-							cnt++;
-							// printf("%d %d %d %d %d %ld %ld\n", i, src, dst, q->sport, sport.second, sw->nbr_flow_time[sport.second], q->m_size);
-							sw->nbr_flow_time[sport.second] -= q->m_size;
-							if (sw->nbr_flow_time[sport.second] <= 0)
-							{
-								sw->nbr_flow_time[sport.second] = 0;
-							}
-							sw->APOLLO_route_table[sip.first][dip.first].erase(sw->APOLLO_route_table[sip.first][dip.first].find(sport.first));
-						}
-					}
-				}
-			}
-		}
-	}
-	NS_ASSERT(cnt <= 4);*/
 }
 
 // pfc file format
