@@ -181,6 +181,7 @@ namespace ns3
 
 	RdmaHw::RdmaHw()
 	{
+		use_APOLLO_route_table = false;
 	}
 
 	void RdmaHw::SetNode(Ptr<Node> node)
@@ -247,8 +248,9 @@ namespace ns3
 		qp->SetBaseRtt(baseRtt);
 		qp->SetVarWin(m_var_win);
 		qp->SetAppNotifyCallback(notifyAppFinish);
-		//printf("%d %d %d %d\n", (sip.Get() >> 8) & 0xffff, (dip.Get() >> 8) & 0xffff, size, sport);
-		//add_route((sip.Get() >> 8) & 0xffff, (dip.Get() >> 8) & 0xffff, size, sport);
+		// printf("%d %d %d %d\n", (sip.Get() >> 8) & 0xffff, (dip.Get() >> 8) & 0xffff, size, sport);
+		if (use_APOLLO_route_table)
+			add_route((sip.Get() >> 8) & 0xffff, (dip.Get() >> 8) & 0xffff, size, sport);
 		// add qp
 		uint32_t nic_idx = GetNicIdxOfQp(qp);
 		m_nic[nic_idx].qpGrp->AddQp(qp);

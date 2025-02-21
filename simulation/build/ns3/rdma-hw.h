@@ -168,6 +168,7 @@ namespace ns3
 		void HandleSRCBolt(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader &ch);
 
 		void (*add_route)(int, int, int, int);
+		bool use_APOLLO_route_table;
 	};
 
 } /* namespace ns3 */

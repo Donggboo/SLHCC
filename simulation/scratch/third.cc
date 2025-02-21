@@ -308,7 +308,7 @@ void qp_finish(FILE *fout, Ptr<RdmaQueuePair> q)
 	// printf("c:%d\n",CustomHeader::GetStaticWholeHeaderSize() - IntHeader::GetStaticSize());
 	uint64_t standalone_fct = base_rtt + total_bytes * 8000000000lu / b;
 	// sip, dip, sport, dport, size (B), start_time, fct (ns), standalone_fct (ns)
-	fprintf(fout, "%08x %08x %u %u %lu %lu %lu %lu\n", ip_to_node_id(q->sip), ip_to_node_id(q->dip), q->sport, q->dport, q->m_size, q->startTime.GetTimeStep(), (Simulator::Now() - q->startTime).GetTimeStep(), standalone_fct);
+	fprintf(fout, "%d %d %u %u %lu %lu %lu %lu\n", ip_to_node_id(q->sip), ip_to_node_id(q->dip), q->sport, q->dport, q->m_size, q->startTime.GetTimeStep(), (Simulator::Now() - q->startTime).GetTimeStep(), standalone_fct);
 	fflush(fout);
 
 	// remove rxQp from the receiver
@@ -1231,6 +1231,7 @@ int main(int argc, char *argv[])
 			rdmaHw->SetAttribute("DctcpRateAI", DataRateValue(DataRate(dctcp_rate_ai)));
 			rdmaHw->SetPintSmplThresh(pint_prob);
 			rdmaHw->add_route = add_route_to_sw;
+			rdmaHw->use_APOLLO_route_table=use_APOLLO_route_table;
 			// create and install RdmaDriver
 			Ptr<RdmaDriver> rdma = CreateObject<RdmaDriver>();
 			Ptr<Node> node = nodes.Get(i);

@@ -12,7 +12,7 @@ PFC_OUTPUT_FILE mix/pfc.txt {output file: result of PFC}
 
 SIMULATOR_STOP_TIME 4.00 {simulation stop time}
 
-CC_MODE 3 {Specifying different CC. 1: DCQCN, 3: HPCC, 7: TIMELY, 8: DCTCP, 10: HPCC-PINT ,11:LHCC}
+CC_MODE 3 {Specifying different CC. 1: DCQCN, 3: HPCC, 7: TIMELY, 8: DCTCP, 10: HPCC-PINT ,11:LHCC,13:bolt}
 ALPHA_RESUME_INTERVAL 1 {for DCQCN: the interval of update alpha}
 RATE_DECREASE_INTERVAL 4 {for DCQCN: the interval of rate decrease}
 CLAMP_TARGET_RATE 0 {for DCQCN: whether to reduce target rate upon consecutive rate decrease}
